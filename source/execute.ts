@@ -554,10 +554,6 @@ export class Runtime {
     process.exit(1);
   }
 
-  // TODO: Add "private?" environment for things such as:
-  // TODO:  - Preventing a function from being defined more than once
-  // TODO:  - Preventing a label from being defined more than once
-
   private operation_function_call() {
     const ident = this.eatAndExpectToken<IdentToken<string>>(
       TokenType.Identifier
