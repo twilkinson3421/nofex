@@ -632,3 +632,10 @@ export class Runtime {
     return this.registers.get(registerNames.return_register);
   }
 }
+
+// TODO: Add "private"? environment for things such as:
+// TODO:  - Preventing a function from being defined more than once
+// TODO:  - Preventing a label from being defined more than once
+
+// TODO: Proper Error Messages
+// TODO: Throw Errors instead of exiting
