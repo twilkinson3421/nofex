@@ -1,0 +1,101 @@
+fun other_func 1
+  out %0
+efn other_func
+
+fun add_two 1
+  exe other_func 4
+  add %0 2
+efn add_two
+
+exe add_two 36
+put "The result of adding 2 to 36 is "
+out :IAX
+
+out ""
+
+sta a 10
+sta b 20
+
+; this is a comment
+
+put "b is "
+put b
+put " and a is "
+out a
+
+cmp a b
+brg b_is_greater
+bre both_equal
+
+out "a is greater than b"
+bra after
+
+lbl b_is_greater
+out "b is greater than a"
+bra after
+
+lbl both_equal
+out "a and b are equal"
+
+lbl after
+out ""
+
+reg :IAX 5
+add :IAX 7
+put "Add 5 and 7 is "
+out :IAX
+
+mul 4 6
+put "Multiply 4 by 6 is "
+out :IAX
+
+mod :IAX 5
+
+put "Modulo 5 of "
+put :IOA
+put " is "
+out :IAX
+
+out ""
+
+con "Hello, " "World"
+con :XC1 "!"
+out :XC1
+
+psh "Welcome, "
+psh "Nofex"
+psh "!"
+
+pop
+reg :XC4 :XC1
+pop
+con :XC1 :XC4
+reg :XC4 :XC1
+pop
+con :XC1 :XC4
+out :XC1
+
+psh "Nofex"
+uns "Greetings, "
+psh "!"
+
+sft
+sft
+con :XOC :XC1
+sft
+con :XOC :XC1
+out :XC1
+
+psh "Element in stack"
+elm 0
+out :XC1
+
+out ""
+
+inp "Enter a number: "
+put "You entered: "
+out :XC1
+
+mul :XC1 2
+put "Your number multiplied by 2 is "
+out :IAX

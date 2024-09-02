@@ -1,0 +1,21 @@
+{
+  "name": "nofex",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "testlex": "tsx test/lex.ts",
+    "testexec": "tsx test/exec.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "description": "",
+  "devDependencies": {
+    "@types/node": "^22.5.1",
+    "@types/readline-sync": "^1.4.8"
+  },
+  "dependencies": {
+    "readline-sync": "^1.4.10"
+  }
+}
