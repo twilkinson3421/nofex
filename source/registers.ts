@@ -28,7 +28,7 @@ export type RegisterName = (typeof registerNames)[keyof typeof registerNames];
 export const initRegisters = (overrides?: Array<[RegisterName, any]>) =>
   new Map<RegisterName, any>([
     [registerNames.position_counter, 0],
-    [registerNames.return_register, 0],
+    [registerNames.return_register, null],
     [registerNames.accumulator, 0],
     [registerNames.previous_accumulator, 0],
     [registerNames.position_before_branch, 0],

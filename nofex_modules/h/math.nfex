@@ -32,8 +32,6 @@ fun abs 1
 efn abs
 exp abs
 
-; floor is a standard operation
-; it is defined here for consistency with other mathematical operations
 fun floor 1
   flr %0
   ret :IAX
