@@ -1,0 +1,65 @@
+fun min 2
+  cmp %0 %1
+  brl less_than
+  ret %0
+  bra end
+  lbl less_than
+  ret %1
+  lbl end
+efn min
+exp min
+
+fun max 2
+  cmp %0 %1
+  brg greater_than
+  ret %0
+  bra end
+  lbl greater_than
+  ret %1
+  lbl end
+efn max
+exp max
+
+fun abs 1
+  reg :IAX %0
+  brn is_negative
+  ret %0
+  bra end
+  lbl is_negative
+  mul %0 -1
+  ret :IAX
+  lbl end
+efn abs
+exp abs
+
+; floor is a standard operation
+; it is defined here for consistency with other mathematical operations
+fun floor 1
+  flr %0
+  ret :IAX
+efn floor
+exp floor
+
+fun ceil 1
+  mul %0 -1
+  exe floor :IAX
+  mul :FUN -1
+  ret :IAX
+efn ceil
+exp ceil
+
+fun quotient 2
+  div %0 %1
+  exe floor :IAX
+  ret :FUN
+efn quotient
+exp quotient
+
+fun mod 2
+  exe quotient %0 %1
+  sta q :FUN
+  mul %1 q
+  sub %0 :IAX
+  ret :IAX
+efn mod
+exp mod

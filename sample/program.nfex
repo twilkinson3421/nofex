@@ -1,15 +1,21 @@
+use <h.math.nfex>
+
 fun other_func 1
   out %0
 efn other_func
 
 fun add_two 1
-  exe other_func 4
+  exe other_func 17
   add %0 2
+  ret :IAX
 efn add_two
 
-exe add_two 36
-put "The result of adding 2 to 36 is "
-out :IAX
+sta v 53
+exe add_two v
+put "The result of adding 2 to "
+put v
+put " is "
+out :FUN
 
 out ""
 
@@ -40,21 +46,19 @@ out "a and b are equal"
 lbl after
 out ""
 
-reg :IAX 5
-add :IAX 7
+add 5 7
 put "Add 5 and 7 is "
 out :IAX
 
-mul 4 6
-put "Multiply 4 by 6 is "
-out :IAX
+mul 6 7
+sta mult_result :IAX
+put "Multiply 6 by 7 is "
+out mult_result
 
-mod :IAX 5
-
-put "Modulo 5 of "
-put :IOA
-put " is "
-out :IAX
+sta u 8
+exe #h.math,mod mult_result u
+con mult_result " Modulo " _ u _ " is " _ :FUN
+out :XC1
 
 out ""
 
@@ -89,6 +93,12 @@ out :XC1
 psh "Element in stack"
 elm 0
 out :XC1
+
+out ""
+
+exe #h.math,ceil 4.3
+put "Ceiling of 4.3 is "
+out :FUN
 
 out ""
 

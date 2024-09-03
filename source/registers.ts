@@ -1,6 +1,7 @@
 export const registerNames = {
   position_counter: "IPX",
-  return_register: "XRT",
+  return_register: "RET",
+
   accumulator: "IAX",
   previous_accumulator: "IOA",
   position_before_branch: "IBX",
@@ -18,13 +19,13 @@ export const registerNames = {
   generic_stack: "LSX",
   generic_stack_length: "ISL",
 
-  function_arguments_stack: "LFA",
-  function_return_position_stack: "LRP",
+  function_arguments: "LFA",
+  function_result: "FUN",
 } as const;
 
 export type RegisterName = (typeof registerNames)[keyof typeof registerNames];
 
-export const initRegisters = () =>
+export const initRegisters = (overrides?: Array<[RegisterName, any]>) =>
   new Map<RegisterName, any>([
     [registerNames.position_counter, 0],
     [registerNames.return_register, 0],
@@ -45,6 +46,8 @@ export const initRegisters = () =>
     [registerNames.generic_stack, []],
     [registerNames.generic_stack_length, 0],
 
-    [registerNames.function_arguments_stack, []],
-    [registerNames.function_return_position_stack, []],
+    [registerNames.function_arguments, []],
+    [registerNames.function_result, null],
+
+    ...(overrides ?? []),
   ]);

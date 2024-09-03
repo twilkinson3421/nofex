@@ -1,33 +1,53 @@
+import * as fs from "fs";
+import * as path from "path";
 import * as readlineSync from "readline-sync";
 
 import { initEnvironment } from "./environment.js";
 import { lex } from "./lexer.js";
+import { MODULE_DIR } from "./modules.js";
 import { OperationName, operationNames, operations } from "./operations.js";
 import { RegisterName, initRegisters, registerNames } from "./registers.js";
 import {
+  FileRefToken,
   FunctionArgumentRefToken,
   IdentToken,
   InitToken,
   LexedToken,
+  ModuleRefToken,
   NumericLiteralToken,
   OperationToken,
   RegisterRefToken,
   StringLiteralToken,
   TokenType,
-  getDebugFromType
+  getDebugFromType,
 } from "./tokens.js";
 
 export type RuntimeOptions = {
   environment?: Map<string, any>;
+  registers?: Map<RegisterName, any>;
 };
 
 export class Runtime {
   private tokens: LexedToken[] = [];
   private environment = initEnvironment();
   private registers = initRegisters();
+  private modules: Map<
+    string,
+    { exports: Map<string, any>; environment: Map<string, any> }
+  > = new Map();
+  private exports: Map<string, any> = new Map();
+
+  public getEnvironment() {
+    return this.environment;
+  }
+
+  public getExports() {
+    return this.exports;
+  }
 
   constructor(options?: RuntimeOptions) {
     if (options?.environment) this.environment = options.environment;
+    if (options?.registers) this.registers = options.registers;
   }
 
   // Token Utils
@@ -73,6 +93,19 @@ export class Runtime {
     return token;
   }
 
+  private eatAndExpectOneOfToken<T extends LexedToken>(
+    expectedTokenTypes: TokenType[]
+  ) {
+    const token = this.eatToken<T>();
+    if (!expectedTokenTypes.includes(token.type)) {
+      console.error(
+        `Expected token of type: one of ${expectedTokenTypes}, but got ${token.type} instead`
+      );
+      process.exit(1);
+    }
+    return token;
+  }
+
   private eatAndExpectValueToken() {
     return this.eatAndExpectOneOfToken<
       | StringLiteralToken<string>
@@ -80,26 +113,15 @@ export class Runtime {
       | IdentToken<string>
       | RegisterRefToken<RegisterName>
       | FunctionArgumentRefToken<number>
+      | ModuleRefToken<string, string>
     >([
       TokenType.StringLiteral,
       TokenType.NumericLiteral,
       TokenType.Identifier,
       TokenType.RegisterRef,
       TokenType.FunctionArgumentRef,
+      TokenType.ModuleRef,
     ]);
-  }
-
-  private eatAndExpectOneOfToken<T extends LexedToken>(
-    expectedTokenTypes: TokenType[]
-  ) {
-    const token = this.eatToken<T>();
-    if (!expectedTokenTypes.includes(token.type)) {
-      console.error(
-        `Expect token of type: one of ${expectedTokenTypes}, but got ${token.type} instead`
-      );
-      process.exit(1);
-    }
-    return token;
   }
 
   private eatValueFromNextToken(): string | number {
@@ -113,9 +135,10 @@ export class Runtime {
       value = this.registers.get(token.value);
     else if (tokenType === TokenType.FunctionArgumentRef)
       value = this.registers
-        .get(registerNames.function_arguments_stack)
-        .at(-1)
+        .get(registerNames.function_arguments)
         .at(token.value);
+    else if (tokenType === TokenType.ModuleRef)
+      value = this.modules.get(token.module)?.exports.get(token.value);
     else value = token.value;
 
     if (typeof value === "undefined") {
@@ -145,6 +168,22 @@ export class Runtime {
     }
 
     return value;
+  }
+
+  private eatIdentifierNameFromNextToken() {
+    const value = this.eatAndExpectToken<IdentToken<string>>(
+      TokenType.Identifier
+    ).value;
+    return value;
+  }
+
+  private numberIsPositiveSafeInteger(value: number) {
+    return (
+      value >= 0 &&
+      Number.isInteger(value) &&
+      Number.isFinite(value) &&
+      Number.isSafeInteger(value)
+    );
   }
 
   // Handle Comment
@@ -220,6 +259,19 @@ export class Runtime {
     }
   }
 
+  private modifyEnvironment(ident: string, value: any) {
+    this.environment.set(ident, value);
+  }
+
+  private expectFromEnvironment(ident: string) {
+    const value = this.environment.get(ident);
+    if (typeof value === "undefined") {
+      console.error(`Value "${ident}" is accessed before it is defined`);
+      process.exit(1);
+    }
+    return value;
+  }
+
   private operation_exit() {
     const code = this.eatAndExpectToken<NumericLiteralToken<number>>(
       TokenType.NumericLiteral
@@ -241,23 +293,22 @@ export class Runtime {
     this.eatAndExpectToken(TokenType.Identifier);
   }
 
+  private operation_set_return_register() {
+    const value = this.eatValueFromNextToken();
+    this.modifyRegister(registerNames.return_register, value);
+  }
+
   // Variable Operations
 
   private operation_set_variable() {
-    const ident = this.eatAndExpectToken<IdentToken<string>>(
-      TokenType.Identifier
-    ).value;
-
+    const ident = this.eatIdentifierNameFromNextToken();
     const value = this.eatValueFromNextToken();
-    this.environment.set(ident, value);
+    this.modifyEnvironment(ident, value);
   }
 
   private operation_load_variable() {
-    const ident = this.eatAndExpectToken<IdentToken<string>>(
-      TokenType.Identifier
-    ).value;
-
-    const value = this.environment.get(ident);
+    const ident = this.eatIdentifierNameFromNextToken();
+    const value = this.expectFromEnvironment(ident);
     this.modifyRegister(registerNames.complex_data_register_1, value);
   }
 
@@ -275,9 +326,7 @@ export class Runtime {
   }
 
   private operation_branch_always() {
-    const label = this.eatAndExpectToken<IdentToken<string>>(
-      TokenType.Identifier
-    ).value;
+    const label = this.eatIdentifierNameFromNextToken();
     this.gotoLabel(label);
   }
 
@@ -374,29 +423,25 @@ export class Runtime {
     this.modifyRegister(registerNames.accumulator, a / b);
   }
 
-  private operation_math_modulo() {
+  private operation_math_floor() {
     const a = this.eatNumericValueFromNextToken();
-    const b = this.eatNumericValueFromNextToken();
-    this.modifyRegister(registerNames.accumulator, a % b);
-  }
-
-  private operation_math_absolute() {
-    const a = this.eatNumericValueFromNextToken();
-    this.modifyRegister(registerNames.accumulator, Math.abs(a));
-  }
-
-  private operation_math_exponent() {
-    const a = this.eatNumericValueFromNextToken();
-    const b = this.eatNumericValueFromNextToken();
-    this.modifyRegister(registerNames.accumulator, Math.pow(a, b));
+    this.modifyRegister(registerNames.accumulator, Math.floor(a));
   }
 
   // String Operations
 
   private operation_string_concat() {
-    const a = this.eatStringValueFromNextToken();
-    const b = this.eatStringValueFromNextToken();
+    const a = this.eatValueFromNextToken().toString();
+    const b = this.eatValueFromNextToken().toString();
     this.modifyRegister(registerNames.complex_data_register_1, `${a}${b}`);
+  }
+
+  private operation_string_concat_to_current() {
+    const a = this.eatValueFromNextToken().toString();
+    this.modifyRegister(
+      registerNames.complex_data_register_1,
+      `${this.registers.get(registerNames.complex_data_register_1)}${a}`
+    );
   }
 
   // Stack Operation Helpers
@@ -472,102 +517,10 @@ export class Runtime {
   // Functions
 
   private operation_function_start() {
-    // Ignores the function body; this is the declaration only - not the function call!
+    const ident = this.eatIdentifierNameFromNextToken();
+    const arity = this.eatNumericValueFromNextToken();
 
-    const ident = this.eatAndExpectToken<IdentToken<string>>(
-      TokenType.Identifier
-    ).value;
-
-    const tokensAtFunctionEnd = [
-      InitToken.operation(operationNames.function_end),
-      InitToken.ident(ident),
-    ];
-
-    let index = this.registers.get(registerNames.position_counter);
-
-    while (true) {
-      const tokens = this.peekTokensBetween(
-        index,
-        index + tokensAtFunctionEnd.length
-      );
-      if (tokens.includes(InitToken.eof())) break;
-
-      if (JSON.stringify(tokens) === JSON.stringify(tokensAtFunctionEnd)) {
-        this.modifyRegister(
-          registerNames.position_counter,
-          index + tokensAtFunctionEnd.length
-        );
-        // skip over the function end ->
-        // the function end operation is used to determine the end of the function
-        // when the function is called
-        return;
-      }
-
-      index++;
-    }
-
-    console.error(
-      `No matching function end was found in source for function "${ident}"`
-    );
-    process.exit(1);
-  }
-
-  private operation_function_end() {
-    this.registers.get(registerNames.function_arguments_stack).pop();
-    const returnPosition = this.registers
-      .get(registerNames.function_return_position_stack)
-      .pop();
-    this.modifyRegister(registerNames.position_counter, returnPosition);
-  }
-
-  private getFunctionArityAndPosition(ident: string) {
-    const tokensAtFunctionStart = [
-      InitToken.operation(operationNames.function_start),
-      InitToken.ident(ident),
-    ];
-
-    let index = 0;
-
-    while (true) {
-      const tokens = this.peekTokensBetween(
-        index,
-        index + tokensAtFunctionStart.length
-      );
-      if (tokens.includes(InitToken.eof())) break;
-
-      const arityTokenPosition = index + tokensAtFunctionStart.length;
-      const functionBodyStartPosition = arityTokenPosition + 1;
-
-      if (JSON.stringify(tokens) === JSON.stringify(tokensAtFunctionStart)) {
-        const declaration = this.peekTokensBetween(
-          index,
-          arityTokenPosition + 1
-        );
-        const arityToken = declaration.at(-1) as NumericLiteralToken<number>;
-        return [arityToken.value, functionBodyStartPosition] as const;
-      }
-
-      index++;
-    }
-
-    console.error(`No definition for function "${ident}" was found in source`);
-    process.exit(1);
-  }
-
-  private operation_function_call() {
-    const ident = this.eatAndExpectToken<IdentToken<string>>(
-      TokenType.Identifier
-    ).value;
-
-    const [arity, startPosition] = this.getFunctionArityAndPosition(ident);
-
-    if (
-      arity < 0 ||
-      Number.isNaN(arity) ||
-      !Number.isInteger(arity) ||
-      !Number.isFinite(arity) ||
-      !Number.isSafeInteger(arity)
-    ) {
+    if (!this.numberIsPositiveSafeInteger(arity)) {
       console.error(
         `Invalid arity: "${arity}", for function: "${ident}", at position ${this.registers.get(
           registerNames.position_counter
@@ -576,17 +529,131 @@ export class Runtime {
       process.exit(1);
     }
 
+    const tokensAtFunctionEnd = [
+      InitToken.operation(operationNames.function_end),
+      InitToken.ident(ident),
+    ];
+
+    const functionBody: LexedToken[] = [];
+    let index = this.registers.get(registerNames.position_counter);
+
+    while (true) {
+      const tokens = this.peekTokensBetween(
+        index,
+        tokensAtFunctionEnd.length + index
+      );
+      if (tokens.includes(InitToken.eof())) break;
+
+      if (JSON.stringify(tokens) === JSON.stringify(tokensAtFunctionEnd)) {
+        this.modifyRegister(
+          registerNames.position_counter,
+          index + tokensAtFunctionEnd.length
+        ); // skip over the function end
+        break;
+      }
+
+      functionBody.push(this.eatToken());
+      index++;
+    }
+
+    functionBody.push(InitToken.eof());
+
+    if (this.environment.has(ident)) {
+      console.error(
+        `"${ident}" is already defined and cannot be overwritten by a function`
+      );
+      process.exit(1);
+    }
+
+    this.modifyEnvironment(ident, { functionBody, arity });
+  }
+
+  private operation_function_end() {
+    // will never be called
+  }
+
+  private operation_function_call() {
+    const identToken = this.eatAndExpectOneOfToken<
+      IdentToken<string> | ModuleRefToken<string, string>
+    >([TokenType.Identifier, TokenType.ModuleRef]);
+
+    const {
+      functionBody,
+      arity,
+    }: { functionBody: LexedToken[]; arity: number } = (() => {
+      if (identToken.type === TokenType.Identifier)
+        return this.expectFromEnvironment(identToken.value);
+
+      const moduleName = identToken.module;
+      const module = this.modules.get(moduleName);
+      if (!module) {
+        console.error(`Module "${moduleName}" has not been imported`);
+        process.exit(1);
+      }
+
+      if (!module.exports.has(identToken.value)) {
+        console.error(
+          `Export "${identToken.value}" was not found in module "${moduleName}"`
+        );
+        process.exit(1);
+      }
+
+      return module.exports.get(identToken.value);
+    })();
+
     const args = [];
 
     while (args.length < arity) {
       args.push(this.eatValueFromNextToken());
     }
 
-    this.registers.get(registerNames.function_arguments_stack).push(args);
-    this.registers
-      .get(registerNames.function_return_position_stack)
-      .push(this.registers.get(registerNames.position_counter)); // position to return to after the function has finished
-    this.modifyRegister(registerNames.position_counter, startPosition);
+    const scope = new Runtime({
+      environment:
+        identToken.type === TokenType.Identifier
+          ? this.environment
+          : this.modules.get(identToken.module)!.environment,
+      registers: initRegisters([[registerNames.function_arguments, args]]),
+    });
+    const returnValue = scope.execute(functionBody);
+    this.modifyRegister(registerNames.function_result, returnValue);
+  }
+
+  // Modules
+
+  private operation_export() {
+    const ident = this.eatIdentifierNameFromNextToken();
+    if (this.exports.has(ident)) {
+      console.error(`Export "${ident}" is already defined`);
+      process.exit(1);
+    }
+    this.exports.set(ident, this.environment.get(ident));
+  }
+
+  private operation_import() {
+    const moduleName = this.eatAndExpectToken<FileRefToken<string>>(
+      TokenType.FileRef
+    ).value;
+
+    const splitPath = moduleName.split(".");
+    const lastTwo = splitPath.splice(-2, 2);
+    splitPath.push(lastTwo.join("."));
+
+    const modulePath = path.join(process.cwd(), MODULE_DIR, ...splitPath);
+    const moduleExists = fs.existsSync(modulePath);
+
+    if (!moduleExists) {
+      console.error(`Module "${moduleName}" was not found at "${modulePath}"`);
+      process.exit(1);
+    }
+
+    const moduleSource = fs.readFileSync(modulePath, "utf8");
+    const moduleScope = new Runtime();
+    moduleScope.execute(moduleSource);
+    const storeAs = moduleName.split(".").slice(0, -1).join(".");
+    this.modules.set(storeAs, {
+      exports: moduleScope.getExports(),
+      environment: moduleScope.getEnvironment(),
+    });
   }
 
   // Program Execution
@@ -623,8 +690,8 @@ export class Runtime {
     }
   }
 
-  public execute(source: string) {
-    this.tokens = lex(source);
+  public execute(source: string | LexedToken[]) {
+    this.tokens = typeof source === "string" ? lex(source) : source;
 
     while (this.peekNextToken().type !== TokenType.EndOfFile)
       this.executeInstruction();
@@ -633,12 +700,5 @@ export class Runtime {
   }
 }
 
-// TODO: Add "private"? environment for things such as:
-// TODO:  - Preventing a function from being defined more than once
-// TODO:  - Preventing a label from being defined more than once
-
 // TODO: Proper Error Messages
 // TODO: Throw Errors instead of exiting
-
-// TODO: Import (via "use") from other files
-// TODO: Will simply lex the imported file, and prepend the tokens to the current file (actually just place them at the current position)

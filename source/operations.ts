@@ -24,16 +24,16 @@ export const operationNames = {
   exit: "hlt",
 
   set_register: "reg",
+  set_return_register: "ret",
 
   math_add: "add",
   math_subtract: "sub",
   math_multiply: "mul",
   math_divide: "div",
-  math_modulo: "mod",
-  math_absolute: "abs",
-  math_exponent: "exp",
+  math_floor: "flr",
 
   string_concat: "con",
+  string_concat_to_current: "_",
 
   stack_push: "psh",
   stack_pop: "pop",
@@ -44,6 +44,9 @@ export const operationNames = {
   function_start: "fun",
   function_end: "efn",
   function_call: "exe",
+
+  export: "exp",
+  import: "use",
 } as const;
 
 export type OperationName =

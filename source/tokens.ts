@@ -14,6 +14,9 @@ export enum TokenType {
 
   RegisterRef,
   FunctionArgumentRef,
+
+  FileRef,
+  ModuleRef,
 }
 
 export interface Token<T extends TokenType, D extends string> {
@@ -75,6 +78,21 @@ export interface FunctionArgumentRefToken<V extends number>
   value: V;
 }
 
+export interface FileRefToken<V extends string>
+  extends Token<TokenType.FileRef, "FILE_REF"> {
+  type: TokenType.FileRef;
+  debug: "FILE_REF";
+  value: V;
+}
+
+export interface ModuleRefToken<M extends string, V extends string>
+  extends Token<TokenType.ModuleRef, "MODULE_REF"> {
+  type: TokenType.ModuleRef;
+  debug: "MODULE_REF";
+  module: M;
+  value: V;
+}
+
 export type LexedToken =
   | Token<TokenType, string>
   | EOFToken
@@ -82,7 +100,9 @@ export type LexedToken =
   | IdentToken<string>
   | NumericLiteralToken<number>
   | StringLiteralToken<string>
-  | CommentToken<string>;
+  | CommentToken<string>
+  | FileRefToken<string>
+  | ModuleRefToken<string, string>;
 
 export function getDebugFromType(type: TokenType): string {
   switch (type) {
@@ -102,6 +122,10 @@ export function getDebugFromType(type: TokenType): string {
       return "REGISTER_REF";
     case TokenType.FunctionArgumentRef:
       return "FUNCTION_ARGUMENT_REF";
+    case TokenType.FileRef:
+      return "FILE_REF";
+    case TokenType.ModuleRef:
+      return "MODULE_REF";
   }
 }
 
@@ -168,6 +192,22 @@ export namespace InitToken {
   ): FunctionArgumentRefToken<V> => ({
     type: TokenType.FunctionArgumentRef,
     debug: "FUNCTION_ARGUMENT_REF",
+    value,
+  });
+
+  export const fileRef = <V extends string>(value: V): FileRefToken<V> => ({
+    type: TokenType.FileRef,
+    debug: "FILE_REF",
+    value,
+  });
+
+  export const moduleRef = <M extends string, V extends string>(
+    module: M,
+    value: V
+  ): ModuleRefToken<M, V> => ({
+    type: TokenType.ModuleRef,
+    debug: "MODULE_REF",
+    module,
     value,
   });
 }

@@ -99,6 +99,28 @@ export function lex(source: string): LexedToken[] {
       continue;
     }
 
+    if (char === characters.file_reference_delimiter_start) {
+      const value = getCharsUntil(characters.file_reference_delimiter_end).join(
+        ""
+      );
+      shiftNChars(1); // end of file reference delimiter
+      tokens.push(InitToken.fileRef(value));
+      continue;
+    }
+
+    if (char === characters.module_reference_delimiter_start) {
+      const module = getCharsUntil(characters.module_reference_separator).join(
+        ""
+      );
+      shiftNChars(1); // end of module reference delimiter
+      let value = "";
+      while (sourceArray.length > 0 && TryIdent.isValidIdent(nthChar(0))) {
+        value += sourceArray.shift();
+      }
+      tokens.push(InitToken.moduleRef(module, value));
+      continue;
+    }
+
     if (TryIdent.isValidIdentInitial(char)) {
       let value = char;
       while (sourceArray.length > 0 && TryIdent.isValidIdent(nthChar(0))) {
