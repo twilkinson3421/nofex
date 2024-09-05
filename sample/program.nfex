@@ -1,111 +1,86 @@
 use <h.math.nfex>
 
-fun other_func 1
-  out %0
-efn other_func
+exe #h.math,ceil 4.3
+out "Ceiling of 4.3 is "
+log :RES
 
-fun add_two 1
-  exe other_func 17
-  add %0 2
-  ret :IAX
-efn add_two
+exe #h.math,abs -14.3
+out "Absolute value of -14.3 is "
+log :RES
 
-sta v 53
-exe add_two v
-put "The result of adding 2 to "
-put v
-put " is "
-out :FUN
+exe #h.math,mod 17 5
+out "17 mod 5 is "
+log :RES
 
-out ""
+rlf
 
 sta a 10
 sta b 20
-
-; this is a comment
-
-put "b is "
-put b
-put " and a is "
-out a
 
 cmp a b
 brg b_is_greater
 bre both_equal
 
-out "a is greater than b"
+; a is greater
+log "a is greater than b"
 bra after
 
 lbl b_is_greater
-out "b is greater than a"
+log "b is greater than a"
 bra after
 
 lbl both_equal
-out "a and b are equal"
-
+log "a and b are equal"
 lbl after
-out ""
 
-add 5 7
-put "Add 5 and 7 is "
-out :IAX
+sta x 5
+sta y 7
+add x y
+con "The sum of " x _ " and " _ y _ " is " _ :ACC
+log :CDR1
 
-mul 6 7
-sta mult_result :IAX
-put "Multiply 6 by 7 is "
-out mult_result
+rlf
 
-sta u 8
-exe #h.math,mod mult_result u
-con mult_result " Modulo " _ u _ " is " _ :FUN
-out :XC1
+fun greet 1
+  out "Hello, "
+  log %0
+efn greet
 
-out ""
+exe greet "World"
+exe greet "Nofex"
 
-con "Hello, " "World"
-con :XC1 "!"
-out :XC1
-
-psh "Welcome, "
-psh "Nofex"
-psh "!"
-
-pop
-reg :XC4 :XC1
-pop
-con :XC1 :XC4
-reg :XC4 :XC1
-pop
-con :XC1 :XC4
-out :XC1
-
-psh "Nofex"
-uns "Greetings, "
-psh "!"
-
-sft
-sft
-con :XOC :XC1
-sft
-con :XOC :XC1
-out :XC1
-
-psh "Element in stack"
-elm 0
-out :XC1
-
-out ""
-
-exe #h.math,ceil 4.3
-put "Ceiling of 4.3 is "
-out :FUN
-
-out ""
+rlf
 
 inp "Enter a number: "
-put "You entered: "
-out :XC1
+out "You entered: "
+log :CDR1
 
-mul :XC1 2
-put "Your number multiplied by 2 is "
-out :IAX
+mul :CDR1 2
+out "Your number multiplied by 2 is "
+log :ACC
+
+rlf
+
+sta my_array $ARRAY
+psh my_array "This "
+psh my_array "is "
+psh my_array "an "
+psh my_array "array"
+
+len my_array
+sta my_array_length :ACC
+
+sft my_array
+sta first :CDR2
+sft my_array
+sta second :CDR2
+sft my_array
+sta third :CDR2
+sft my_array
+sta fourth :CDR2
+
+con first second _ third _ fourth
+log :CDR1
+
+out "The length of the array was "
+log :ACC

@@ -1,167 +1,219 @@
 import { characters } from "./characters.js";
-import { debug } from "./debug.js";
+import { ControlLabels } from "./controllabels.js";
+import { NewError } from "./errors.js";
 import { TryIdent } from "./ident.js";
-import { canIgnore } from "./ignore.js";
-import { OperationName, operations } from "./operations.js";
-import { RegisterName, initRegisters } from "./registers.js";
-import { InitToken, LexedToken } from "./tokens.js";
+import { canIgnoreChar } from "./ignore.js";
+import { Instructions } from "./instructions.js";
+import { NewToken } from "./newtoken.js";
+import { TryNumber } from "./number.js";
+import { Registers } from "./registers.js";
+import { TokenSpec } from "./tokens.js";
 
-export function lex(source: string): LexedToken[] {
-  const tokens: LexedToken[] = [];
+export function lex(source: string): TokenSpec.AnyToken[] {
+  const tokens: TokenSpec.AnyToken[] = [];
   const sourceArray = source.split("");
 
-  while (sourceArray.length > 0) {
-    const char = sourceArray.shift()!;
-    const nthChar = (n: number) => sourceArray[n];
-    const nChars = (n: number) => sourceArray.slice(0, n);
+  let line = 1;
+  let column = 0;
 
-    const getCharsUntil = (
-      until: string,
-      options?: { ignoreIfPrevious?: string }
-    ) => {
+  while (sourceArray.length > 0) {
+    function handleNextPosition(char: string) {
+      if (char === characters.newline) {
+        line++;
+        column = 0;
+      } else column++;
+    }
+
+    function shiftChar() {
+      const char = sourceArray.shift()!;
+      handleNextPosition(char);
+      return char;
+    }
+
+    const char = shiftChar();
+    const tokenStartColumn = column;
+
+    const peekNthChar = (n: number) => sourceArray[n];
+    const peekNChars = (n: number) => sourceArray.slice(0, n);
+
+    function getCharsAndShiftUntil(
+      match: string,
+      options?: { ignoreIfSucceeds?: string }
+    ) {
       const chars: string[] = [];
       let ignore = false;
 
       while (
         sourceArray.length > 0 &&
-        (nChars(until.length).join("") !== until || ignore)
+        (peekNChars(match.length).join("") !== match || ignore)
       ) {
-        if (options?.ignoreIfPrevious === nthChar(0)) ignore = true;
+        if (options?.ignoreIfSucceeds === peekNthChar(0)) ignore = true;
         else ignore = false;
-        chars.push(sourceArray.shift()!);
+        chars.push(shiftChar());
       }
 
       return chars;
-    };
+    }
 
-    const shiftNChars = (n: number) => {
+    function shiftNChars(n: number) {
       while (sourceArray.length > 0 && n > 0) {
-        sourceArray.shift();
+        shiftChar();
         n--;
       }
-    };
+    }
 
-    if (char === characters.comment_start) {
-      const value = getCharsUntil(characters.newline).join("").trim();
-      tokens.push(InitToken.comment(value));
+    if (char === characters.commentStart) {
+      getCharsAndShiftUntil(characters.newline);
       continue;
     }
 
-    if (char === characters.string_delimiter) {
-      const value = getCharsUntil(characters.string_delimiter, {
-        ignoreIfPrevious: characters.escape_character,
+    if (char === characters.stringDelimiter) {
+      const value = getCharsAndShiftUntil(characters.stringDelimiter, {
+        ignoreIfSucceeds: characters.escapeCharacter,
       }).join("");
       shiftNChars(1); // end of string delimiter
-      tokens.push(InitToken.stringLiteral(value));
+      tokens.push(NewToken.stringLiteral(value, line, tokenStartColumn));
       continue;
     }
 
-    if (char === characters.register_reference) {
-      let value = "";
-      while (sourceArray.length > 0 && TryIdent.isValidIdent(nthChar(0))) {
-        value += sourceArray.shift();
+    if (char === characters.registerReference) {
+      let value: string = "";
+      while (
+        sourceArray.length > 0 &&
+        TryIdent.isValidIdentNoninitial(peekNthChar(0))
+      ) {
+        value += shiftChar();
       }
 
-      if (!initRegisters().has(value as RegisterName)) {
-        console.error(
-          `Encountered invalid register reference: "${value}" at position ${
-            source.length - sourceArray.length
-          }`
+      const isValidRegister = Registers.init().has(value as Registers.Name);
+
+      if (!isValidRegister) {
+        throw new Error(
+          NewError.Lexer.invalidRegisterReference(value, line, tokenStartColumn)
         );
-        process.exit(1);
-      } else tokens.push(InitToken.registerRef(value as RegisterName));
+      }
+
+      tokens.push(NewToken.registerReference(value, line, tokenStartColumn));
       continue;
     }
 
-    if (char === characters.function_argument_reference) {
+    if (char === characters.processArgumentReference) {
       let value: string | number = "";
-      while (sourceArray.length > 0 && TryIdent.isNumeric(nthChar(0))) {
-        value += sourceArray.shift();
+      while (sourceArray.length > 0 && TryIdent.isNumeric(peekNthChar(0))) {
+        value += shiftChar();
       }
       value = Number(value);
 
-      if (
-        value < 0 ||
-        Number.isNaN(value) ||
-        !Number.isInteger(value) ||
-        !Number.isFinite(value) ||
-        !Number.isSafeInteger(value)
-      ) {
-        console.error(
-          `Encountered invalid function argument reference: "${value}" at position ${
-            source.length - sourceArray.length
-          }`
+      if (!TryNumber.isPositiveSafeFiniteInteger(value)) {
+        throw new Error(
+          NewError.Lexer.invalidProcessArgumentReference(
+            value.toString(),
+            line,
+            tokenStartColumn
+          )
         );
-        process.exit(1);
       }
 
-      tokens.push(InitToken.functionArgumentRef(value));
+      tokens.push(
+        NewToken.processArgumentReference(value, line, tokenStartColumn)
+      );
       continue;
     }
 
-    if (char === characters.file_reference_delimiter_start) {
-      const value = getCharsUntil(characters.file_reference_delimiter_end).join(
-        ""
-      );
+    if (char === characters.fileReferenceDelimiterStart) {
+      const value = getCharsAndShiftUntil(
+        characters.fileReferenceDelimiterEnd
+      ).join("");
       shiftNChars(1); // end of file reference delimiter
-      tokens.push(InitToken.fileRef(value));
+      tokens.push(NewToken.fileReference(value, line, tokenStartColumn));
       continue;
     }
 
-    if (char === characters.module_reference_delimiter_start) {
-      const module = getCharsUntil(characters.module_reference_separator).join(
-        ""
-      );
-      shiftNChars(1); // end of module reference delimiter
-      let value = "";
-      while (sourceArray.length > 0 && TryIdent.isValidIdent(nthChar(0))) {
-        value += sourceArray.shift();
+    if (char === characters.moduleReferenceDelimiterStart) {
+      const module = getCharsAndShiftUntil(
+        characters.moduleReferenceSeparator
+      ).join("");
+      shiftNChars(1); // module reference separator
+
+      let value: string = "";
+      while (
+        sourceArray.length > 0 &&
+        TryIdent.isValidIdentNoninitial(peekNthChar(0))
+      ) {
+        value += shiftChar();
       }
-      tokens.push(InitToken.moduleRef(module, value));
+      tokens.push(
+        NewToken.moduleReference(module, value, line, tokenStartColumn)
+      );
       continue;
     }
 
     if (TryIdent.isValidIdentInitial(char)) {
-      let value = char;
-      while (sourceArray.length > 0 && TryIdent.isValidIdent(nthChar(0))) {
-        value += sourceArray.shift();
+      let value: string = char;
+      while (
+        sourceArray.length > 0 &&
+        TryIdent.isValidIdentNoninitial(peekNthChar(0))
+      ) {
+        value += shiftChar();
       }
 
-      if (operations.has(value.toLowerCase() as string as any)) {
-        tokens.push(InitToken.operation(value.toLowerCase() as OperationName));
+      const isValidInstruction = Instructions.all.has(
+        value.toLowerCase() as Instructions.Name
+      );
+
+      const isValidControlLabel = ControlLabels.all.has(
+        value.toLowerCase() as ControlLabels.Name
+      );
+
+      if (isValidInstruction) {
+        tokens.push(
+          NewToken.instruction(
+            value.toLowerCase() as Instructions.Name,
+            line,
+            tokenStartColumn
+          )
+        );
         continue;
       }
 
-      tokens.push(InitToken.ident(value));
+      if (isValidControlLabel) {
+        tokens.push(
+          NewToken.controlLabel(
+            value.toLowerCase() as ControlLabels.Name,
+            line,
+            tokenStartColumn
+          )
+        );
+        continue;
+      }
+
+      tokens.push(NewToken.identifier(value, line, tokenStartColumn));
       continue;
     }
 
     if (TryIdent.isNumeric(char)) {
-      let value = char;
+      let value: string = char;
+
       while (
         sourceArray.length > 0 &&
-        TryIdent.isNumericOrDecimal(nthChar(0))
+        TryIdent.isNumericOrDecimal(peekNthChar(0))
       ) {
-        value += sourceArray.shift();
+        value += shiftChar();
       }
 
-      tokens.push(InitToken.numericLiteral(Number(value)));
+      tokens.push(
+        NewToken.numericLiteral(Number(value), line, tokenStartColumn)
+      );
       continue;
     }
 
-    if (canIgnore(char)) continue;
+    if (canIgnoreChar(char)) continue;
 
-    console.log(tokens.slice(-debug.logNTokensWhenError));
-    console.error(
-      `Encountered unexpected character at position ${
-        source.length - sourceArray.length
-      }: "${char}". The previous ${
-        debug.logNTokensWhenError
-      } tokens are shown above`
+    throw new Error(
+      NewError.Lexer.unexpectedCharacterInSource(char, line, tokenStartColumn)
     );
-    process.exit(1);
   }
 
-  tokens.push(InitToken.eof());
+  tokens.push(NewToken.endOfProcess(line, column));
   return tokens;
 }

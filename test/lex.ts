@@ -8,4 +8,4 @@ const source = fs.readFileSync(SOURCE_PATH, "utf8");
 
 const tokens = lex(source);
 
-console.log(tokens);
+console.table(tokens);

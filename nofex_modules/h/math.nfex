@@ -21,43 +21,43 @@ efn max
 exp max
 
 fun abs 1
-  reg :IAX %0
+  reg :ACC %0
   brn is_negative
   ret %0
   bra end
   lbl is_negative
   mul %0 -1
-  ret :IAX
+  ret :ACC
   lbl end
 efn abs
 exp abs
 
 fun floor 1
   flr %0
-  ret :IAX
+  ret :ACC
 efn floor
 exp floor
 
 fun ceil 1
   mul %0 -1
-  exe floor :IAX
-  mul :FUN -1
-  ret :IAX
+  exe floor :ACC
+  mul :RES -1
+  ret :ACC
 efn ceil
 exp ceil
 
 fun quotient 2
   div %0 %1
-  exe floor :IAX
-  ret :FUN
+  exe floor :ACC
+  ret :RES
 efn quotient
 exp quotient
 
 fun mod 2
   exe quotient %0 %1
-  sta q :FUN
+  sta q :RES
   mul %1 q
-  sub %0 :IAX
-  ret :IAX
+  sub %0 :ACC
+  ret :ACC
 efn mod
 exp mod

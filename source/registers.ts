@@ -1,53 +1,48 @@
-export const registerNames = {
-  position_counter: "IPX",
-  return_register: "RET",
+export namespace Registers {
+  export const names = {
+    positionCounter: "POS",
+    processReturn: "RET",
+    accumulator: "ACC",
+    previousAccumulator: "PAC",
+    positionBeforeBranch: "PBB",
 
-  accumulator: "IAX",
-  previous_accumulator: "IOA",
-  position_before_branch: "IBX",
+    complexDataRegister1: "CDR1",
+    complexDataRegister2: "CDR2",
+    complexDataRegister3: "CDR3",
+    complexDataRegister4: "CDR4",
+    complexDataRegister5: "CDR5",
+    complexDataRegister6: "CDR6",
+    complexDataRegister7: "CDR7",
+    complexDataRegister8: "CDR8",
+    complexOverwrittenRegister: "XCO",
 
-  complex_data_register_1: "XC1",
-  complex_data_register_2: "XC2",
-  complex_data_register_3: "XC3",
-  complex_data_register_4: "XC4",
-  complex_data_register_5: "XC5",
-  complex_data_register_6: "XC6",
-  complex_data_register_7: "XC7",
-  complex_data_register_8: "XC8",
-  complex_overwritten_register: "XOC",
+    processArguments: "ARG",
+    processResult: "RES",
+  } as const;
 
-  generic_stack: "LSX",
-  generic_stack_length: "ISL",
+  export type Name = (typeof names)[keyof typeof names];
 
-  function_arguments: "LFA",
-  function_result: "FUN",
-} as const;
+  export const init = (overrides?: Array<[Name, any]>) =>
+    new Map<Name, any>([
+      [names.positionCounter, 0],
+      [names.processReturn, null],
+      [names.accumulator, 0],
+      [names.previousAccumulator, 0],
+      [names.positionBeforeBranch, 0],
 
-export type RegisterName = (typeof registerNames)[keyof typeof registerNames];
+      [names.complexDataRegister1, null],
+      [names.complexDataRegister2, null],
+      [names.complexDataRegister3, null],
+      [names.complexDataRegister4, null],
+      [names.complexDataRegister5, null],
+      [names.complexDataRegister6, null],
+      [names.complexDataRegister7, null],
+      [names.complexDataRegister8, null],
+      [names.complexOverwrittenRegister, null],
 
-export const initRegisters = (overrides?: Array<[RegisterName, any]>) =>
-  new Map<RegisterName, any>([
-    [registerNames.position_counter, 0],
-    [registerNames.return_register, null],
-    [registerNames.accumulator, 0],
-    [registerNames.previous_accumulator, 0],
-    [registerNames.position_before_branch, 0],
+      [names.processArguments, []],
+      [names.processResult, null],
 
-    [registerNames.complex_data_register_1, null],
-    [registerNames.complex_data_register_2, null],
-    [registerNames.complex_data_register_3, null],
-    [registerNames.complex_data_register_4, null],
-    [registerNames.complex_data_register_5, null],
-    [registerNames.complex_data_register_6, null],
-    [registerNames.complex_data_register_7, null],
-    [registerNames.complex_data_register_8, null],
-    [registerNames.complex_overwritten_register, null],
-
-    [registerNames.generic_stack, []],
-    [registerNames.generic_stack_length, 0],
-
-    [registerNames.function_arguments, []],
-    [registerNames.function_result, null],
-
-    ...(overrides ?? []),
-  ]);
+      ...(overrides ?? []),
+    ]);
+}

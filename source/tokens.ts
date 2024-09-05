@@ -1,213 +1,76 @@
-import { OperationName } from "./operations.js";
-import { RegisterName } from "./registers.js";
+import { ControlLabels } from "./controllabels.js";
+import { Instructions } from "./instructions.js";
 
 export enum TokenType {
-  EndOfFile,
+  Instruction = "INSTRUCTION",
+  Identifier = "IDENTIFIER",
+  ControlLabel = "CONTROL_LABEL",
 
-  Operation,
-  Identifier,
+  NumericLiteral = "NUMERIC_LITERAL",
+  StringLiteral = "STRING_LITERAL",
 
-  NumericLiteral,
-  StringLiteral,
+  RegisterReference = "REGISTER_REFERENCE",
+  FileReference = "FILE_REFERENCE",
+  ModuleReference = "MODULE_REFERENCE",
+  ProcessArgumentReference = "ARGUMENT_REFERENCE",
 
-  Comment,
-
-  RegisterRef,
-  FunctionArgumentRef,
-
-  FileRef,
-  ModuleRef,
+  EndOfProcess = "END_OF_PROCESS",
 }
 
-export interface Token<T extends TokenType, D extends string> {
-  type: T;
-  debug: D;
-}
-
-export interface EOFToken extends Token<TokenType.EndOfFile, "EOF"> {
-  type: TokenType.EndOfFile;
-  debug: "EOF";
-}
-
-export interface OperationToken<V extends OperationName>
-  extends Token<TokenType.Operation, "OPERATION"> {
-  type: TokenType.Operation;
-  debug: "OPERATION";
-  value: V;
-}
-
-export interface IdentToken<V extends string>
-  extends Token<TokenType.Identifier, "IDENTIFIER"> {
-  type: TokenType.Identifier;
-  debug: "IDENTIFIER";
-  value: V;
-}
-
-export interface NumericLiteralToken<V extends number>
-  extends Token<TokenType.NumericLiteral, "NUMERIC_LITERAL"> {
-  type: TokenType.NumericLiteral;
-  debug: "NUMERIC_LITERAL";
-  value: V;
-}
-
-export interface StringLiteralToken<V extends string>
-  extends Token<TokenType.StringLiteral, "STRING_LITERAL"> {
-  type: TokenType.StringLiteral;
-  debug: "STRING_LITERAL";
-  value: V;
-}
-
-export interface CommentToken<V extends string>
-  extends Token<TokenType.Comment, "COMMENT"> {
-  type: TokenType.Comment;
-  debug: "COMMENT";
-  value: V;
-}
-
-export interface RegisterRefToken<V extends RegisterName>
-  extends Token<TokenType.RegisterRef, "REGISTER_REF"> {
-  type: TokenType.RegisterRef;
-  debug: "REGISTER_REF";
-  value: V;
-}
-
-export interface FunctionArgumentRefToken<V extends number>
-  extends Token<TokenType.FunctionArgumentRef, "FUNCTION_ARGUMENT_REF"> {
-  type: TokenType.FunctionArgumentRef;
-  debug: "FUNCTION_ARGUMENT_REF";
-  value: V;
-}
-
-export interface FileRefToken<V extends string>
-  extends Token<TokenType.FileRef, "FILE_REF"> {
-  type: TokenType.FileRef;
-  debug: "FILE_REF";
-  value: V;
-}
-
-export interface ModuleRefToken<M extends string, V extends string>
-  extends Token<TokenType.ModuleRef, "MODULE_REF"> {
-  type: TokenType.ModuleRef;
-  debug: "MODULE_REF";
-  module: M;
-  value: V;
-}
-
-export type LexedToken =
-  | Token<TokenType, string>
-  | EOFToken
-  | OperationToken<OperationName>
-  | IdentToken<string>
-  | NumericLiteralToken<number>
-  | StringLiteralToken<string>
-  | CommentToken<string>
-  | FileRefToken<string>
-  | ModuleRefToken<string, string>;
-
-export function getDebugFromType(type: TokenType): string {
-  switch (type) {
-    case TokenType.EndOfFile:
-      return "EOF";
-    case TokenType.Operation:
-      return "OPERATION";
-    case TokenType.Identifier:
-      return "IDENTIFIER";
-    case TokenType.NumericLiteral:
-      return "NUMERIC_LITERAL";
-    case TokenType.StringLiteral:
-      return "STRING_LITERAL";
-    case TokenType.Comment:
-      return "COMMENT";
-    case TokenType.RegisterRef:
-      return "REGISTER_REF";
-    case TokenType.FunctionArgumentRef:
-      return "FUNCTION_ARGUMENT_REF";
-    case TokenType.FileRef:
-      return "FILE_REF";
-    case TokenType.ModuleRef:
-      return "MODULE_REF";
+export namespace TokenSpec {
+  export interface GenericToken<T extends TokenType> {
+    type: T;
+    line: number;
+    column: number;
   }
-}
 
-export namespace InitToken {
-  export const generic = <T extends TokenType, D extends string>(
-    type: T,
-    debug: D
-  ): Token<T, D> => ({
-    type,
-    debug,
-  });
+  export interface GenericValueToken<T extends TokenType, V extends any>
+    extends GenericToken<T> {
+    value: V;
+  }
 
-  export const eof = (): EOFToken => ({
-    type: TokenType.EndOfFile,
-    debug: "EOF",
-  });
+  export interface InstructionToken<V extends Instructions.Name>
+    extends GenericValueToken<TokenType.Instruction, V> {}
 
-  export const operation = <V extends OperationName>(
-    value: V
-  ): OperationToken<V> => ({
-    type: TokenType.Operation,
-    debug: "OPERATION",
-    value,
-  });
+  export interface IdentifierToken<V extends string>
+    extends GenericValueToken<TokenType.Identifier, V> {}
 
-  export const ident = <V extends string>(value: V): IdentToken<V> => ({
-    type: TokenType.Identifier,
-    debug: "IDENTIFIER",
-    value,
-  });
+  export interface ControlLabelToken<V extends ControlLabels.Name>
+    extends GenericValueToken<TokenType.ControlLabel, V> {}
 
-  export const numericLiteral = <V extends number>(
-    value: V
-  ): NumericLiteralToken<V> => ({
-    type: TokenType.NumericLiteral,
-    debug: "NUMERIC_LITERAL",
-    value,
-  });
+  export interface NumericLiteralToken<V extends number>
+    extends GenericValueToken<TokenType.NumericLiteral, V> {}
 
-  export const stringLiteral = <V extends string>(
-    value: V
-  ): StringLiteralToken<V> => ({
-    type: TokenType.StringLiteral,
-    debug: "STRING_LITERAL",
-    value,
-  });
+  export interface StringLiteralToken<V extends string>
+    extends GenericValueToken<TokenType.StringLiteral, V> {}
 
-  export const comment = <V extends string>(value: V): CommentToken<V> => ({
-    type: TokenType.Comment,
-    debug: "COMMENT",
-    value,
-  });
+  export interface RegisterReferenceToken<V extends string>
+    extends GenericValueToken<TokenType.RegisterReference, V> {}
 
-  export const registerRef = <V extends RegisterName>(
-    value: V
-  ): RegisterRefToken<V> => ({
-    type: TokenType.RegisterRef,
-    debug: "REGISTER_REF",
-    value,
-  });
+  export interface FileReferenceToken<V extends string>
+    extends GenericValueToken<TokenType.FileReference, V> {}
 
-  export const functionArgumentRef = <V extends number>(
-    value: V
-  ): FunctionArgumentRefToken<V> => ({
-    type: TokenType.FunctionArgumentRef,
-    debug: "FUNCTION_ARGUMENT_REF",
-    value,
-  });
+  export interface ModuleReferenceToken<M extends string, V extends string>
+    extends GenericValueToken<TokenType.ModuleReference, V> {
+    module: M;
+  }
 
-  export const fileRef = <V extends string>(value: V): FileRefToken<V> => ({
-    type: TokenType.FileRef,
-    debug: "FILE_REF",
-    value,
-  });
+  export interface ProcessArgumentReferenceToken<V extends number>
+    extends GenericValueToken<TokenType.ProcessArgumentReference, V> {}
 
-  export const moduleRef = <M extends string, V extends string>(
-    module: M,
-    value: V
-  ): ModuleRefToken<M, V> => ({
-    type: TokenType.ModuleRef,
-    debug: "MODULE_REF",
-    module,
-    value,
-  });
+  export interface EndOfProcessToken
+    extends GenericToken<TokenType.EndOfProcess> {}
+
+  export type AnyToken =
+    | GenericToken<TokenType>
+    | InstructionToken<Instructions.Name>
+    | IdentifierToken<string>
+    | ControlLabelToken<ControlLabels.Name>
+    | NumericLiteralToken<number>
+    | StringLiteralToken<string>
+    | RegisterReferenceToken<string>
+    | FileReferenceToken<string>
+    | ModuleReferenceToken<string, string>
+    | ProcessArgumentReferenceToken<number>
+    | EndOfProcessToken;
 }
