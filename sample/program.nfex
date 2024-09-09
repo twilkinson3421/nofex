@@ -83,7 +83,7 @@ con first second _ third _ fourth
 log :CDR1
 
 out "The length of the array was "
-log :ACC
+log my_array_length
 
 rlf
 
