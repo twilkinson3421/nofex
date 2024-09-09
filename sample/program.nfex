@@ -84,3 +84,18 @@ log :CDR1
 
 out "The length of the array was "
 log :ACC
+
+rlf
+
+inp "Enter a decimal number: "
+sta user_number :CDR1
+out "You entered: "
+log user_number
+
+out "Your number in base 2 is "
+rep user_number 10 2
+log :CDR1
+
+out "Your number in base 16 is "
+rep user_number 10 16
+log :CDR1

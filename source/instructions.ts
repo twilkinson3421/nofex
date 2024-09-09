@@ -34,6 +34,7 @@ export namespace Instructions {
     stringConcatToCurrent: "_",
 
     convertToNumber: "num",
+    convertBase: "rep",
 
     arrayPush: "psh",
     arrayPop: "pop",

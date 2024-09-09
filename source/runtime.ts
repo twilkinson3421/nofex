@@ -452,11 +452,38 @@ export class Runtime {
     );
   }
 
-  //& Converting
+  //& Conversion
 
   private instruction$convertToNumber() {
     const value = this.eatAndExpectValueFromCarrierToken();
     this.modifyRegister(Registers.names.accumulator, Number(value));
+  }
+
+  private instruction$convertBase() {
+    const value = this.eatAndExpectValueFromCarrierToken();
+    const fromToken = this.eatAndExpectToken<
+      TokenSpec.NumericLiteralToken<number>
+    >(TokenType.NumericLiteral);
+    const toToken = this.eatAndExpectToken<
+      TokenSpec.NumericLiteralToken<number>
+    >(TokenType.NumericLiteral);
+
+    if (!TryNumber.isPositiveSafeFiniteInteger(fromToken.value))
+      throw new Error(
+        NewError.Runtime.Execution.invalidConversionBase(fromToken)
+      );
+
+    if (!TryNumber.isPositiveSafeFiniteInteger(toToken.value))
+      throw new Error(
+        NewError.Runtime.Execution.invalidConversionBase(toToken)
+      );
+
+    const result = parseInt(value.toString(), fromToken.value).toString(
+      toToken.value
+    );
+
+    this.modifyRegister(Registers.names.complexDataRegister1, result);
+    this.modifyRegister(Registers.names.complexDataRegister2, toToken.value);
   }
 
   //& Array Operations

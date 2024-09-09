@@ -96,6 +96,11 @@ export namespace NewError {
         path: string
       ) =>
         `RuntimeError: File "${token.value}" at "${path}" does not exist at position ${token.line}:${token.column}`;
+
+      export const invalidConversionBase = (
+        token: TokenSpec.NumericLiteralToken<number>
+      ) =>
+        `RuntimeError: Invalid conversion base: "${token.value}" at position ${token.line}:${token.column}`;
     }
   }
 }
