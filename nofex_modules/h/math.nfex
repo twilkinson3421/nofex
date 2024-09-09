@@ -46,15 +46,15 @@ fun ceil 1
 efn ceil
 exp ceil
 
-fun quotient 2
+fun qot 2
   div %0 %1
   exe floor :ACC
   ret :RES
-efn quotient
-exp quotient
+efn qot
+exp qot
 
 fun mod 2
-  exe quotient %0 %1
+  exe qot %0 %1
   sta q :RES
   mul %1 q
   sub %0 :ACC
