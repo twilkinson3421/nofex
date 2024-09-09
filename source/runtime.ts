@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as readlineSync from "readline-sync";
+import { unraw } from "unraw";
 
 import { ControlLabels } from "./controllabels.js";
 import { Environment } from "./environment.js";
@@ -352,25 +353,29 @@ export class Runtime {
 
   //& Input/Output
 
+  private parseConsoleOutput(message: any) {
+    return unraw(message.toString());
+  }
+
   private instruction$writeLine() {
     const message = this.eatAndExpectValueFromCarrierToken();
-    process.stdout.write(`${message}\n`);
+    process.stdout.write(`${this.parseConsoleOutput(message)}\n`);
   }
 
   private instruction$standardOutput() {
     const message = this.eatAndExpectValueFromCarrierToken();
-    process.stdout.write(`${message}`);
+    process.stdout.write(this.parseConsoleOutput(message));
   }
 
   private instruction$standardError() {
     const message = this.eatAndExpectValueFromCarrierToken();
-    process.stderr.write(`${message}`);
+    process.stderr.write(this.parseConsoleOutput(message));
   }
 
   private instruction$standardInput() {
     const prompt = this.eatAndExpectValueFromCarrierToken();
 
-    const input = readlineSync.question(prompt);
+    const input = readlineSync.question(this.parseConsoleOutput(prompt));
     this.modifyRegister(Registers.names.complexDataRegister1, input);
   }
 
